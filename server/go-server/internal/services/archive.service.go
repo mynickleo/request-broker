@@ -21,7 +21,7 @@ func NewArchiveService(db *mongo.Database) *ArchiveService {
 	}
 }
 
-func (s *ArchiveService) MoveToArchive(item models.Queue, status string) error {
+func (s *ArchiveService) MoveToArchive(ctx context.Context, item models.Queue, status string) error {
 	archiveItem := models.Archive{
 		ID:        primitive.NewObjectID(),
 		URL:       item.URL,
@@ -33,15 +33,15 @@ func (s *ArchiveService) MoveToArchive(item models.Queue, status string) error {
 		UpdatedAt: time.Now(),
 	}
 
-	_, err := s.collection.InsertOne(context.TODO(), archiveItem)
+	_, err := s.collection.InsertOne(ctx, archiveItem)
 	return err
 }
 
-func (s *ArchiveService) GetAll(page, limit int) ([]models.Archive, int64, error) {
+func (s *ArchiveService) GetAll(ctx context.Context, page, limit int) ([]models.Archive, int64, error) {
 	skip := (page - 1) * limit
 	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(limit))
 
-	cursor, err := s.collection.Find(context.TODO(), bson.M{}, opts)
+	cursor, err := s.collection.Find(ctx, bson.M{}, opts)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -51,11 +51,11 @@ func (s *ArchiveService) GetAll(page, limit int) ([]models.Archive, int64, error
 		return nil, 0, err
 	}
 
-	count, err := s.collection.CountDocuments(context.TODO(), bson.M{})
+	count, err := s.collection.CountDocuments(ctx, bson.M{})
 	return items, count, err
 }
 
-func (s *ArchiveService) DeleteAll() error {
-	_, err := s.collection.DeleteMany(context.TODO(), bson.D{})
+func (s *ArchiveService) DeleteAll(ctx context.Context) error {
+	_, err := s.collection.DeleteMany(ctx, bson.D{})
 	return err
 }

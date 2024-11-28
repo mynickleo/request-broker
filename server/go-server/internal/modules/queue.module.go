@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"request-broker/internal/controllers"
 	"request-broker/internal/interfaces"
 	"request-broker/internal/services"
@@ -38,5 +39,5 @@ func (m *QueueModule) Initialization() error {
 
 func (m *QueueModule) RunProcessQueue(s interfaces.QueueService) {
 	time.Sleep(3 * time.Second)
-	s.ProccessQueue()
+	s.ProccessQueue(context.Background())
 }

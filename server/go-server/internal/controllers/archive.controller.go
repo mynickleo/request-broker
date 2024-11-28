@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"request-broker/internal/interfaces"
 	"request-broker/internal/models"
 	"strconv"
@@ -22,7 +23,7 @@ func (c *ArchiveController) GetAll(ctx *fiber.Ctx) error {
 	page, _ := strconv.Atoi(ctx.Query("page", "1"))
 	limit, _ := strconv.Atoi(ctx.Query("limit", "10"))
 
-	items, total, err := c.service.GetAll(page, limit)
+	items, total, err := c.service.GetAll(context.Background(), page, limit)
 	if err != nil {
 		if err.Error() != "document is nil" {
 			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -40,7 +41,7 @@ func (c *ArchiveController) GetAll(ctx *fiber.Ctx) error {
 }
 
 func (c *ArchiveController) DeleteAll(ctx *fiber.Ctx) error {
-	err := c.service.DeleteAll()
+	err := c.service.DeleteAll(context.Background())
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

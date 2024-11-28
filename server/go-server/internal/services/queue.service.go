@@ -28,48 +28,48 @@ func NewQueueService(db *mongo.Database, archiveService interfaces.ArchiveServic
 	}
 }
 
-func (s *QueueService) AddToQueue(item *models.Queue) error {
+func (s *QueueService) AddToQueue(ctx context.Context, item *models.Queue) error {
 	now := time.Now()
 	item.CreatedAt = now
 	item.UpdatedAt = now
 
-	_, err := s.collection.InsertOne(context.TODO(), item)
+	_, err := s.collection.InsertOne(ctx, item)
 	return err
 }
 
-func (s *QueueService) GetAll(page, limit int) ([]models.Queue, int64, error) {
+func (s *QueueService) GetAll(ctx context.Context, page, limit int) ([]models.Queue, int64, error) {
 	skip := (page - 1) * limit
 	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(limit))
 
-	cursor, err := s.collection.Find(context.TODO(), bson.M{}, opts)
+	cursor, err := s.collection.Find(ctx, bson.M{}, opts)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var items []models.Queue
-	if err := cursor.All(context.TODO(), &items); err != nil {
+	if err := cursor.All(ctx, &items); err != nil {
 		return nil, 0, err
 	}
 
-	count, err := s.collection.CountDocuments(context.TODO(), bson.M{})
+	count, err := s.collection.CountDocuments(ctx, bson.M{})
 	return items, count, err
 }
 
-func (s *QueueService) ProccessQueue() {
+func (s *QueueService) ProccessQueue(ctx context.Context) {
 	for {
 		log.Println("Starting fetching queue")
 
 		completed := 0
 		failed := 0
 
-		cursor, err := s.collection.Find(context.TODO(), bson.D{})
+		cursor, err := s.collection.Find(ctx, bson.D{})
 		if err != nil {
 			log.Println("Error fetching queue: ", err)
 			time.Sleep(30 * time.Second)
 			continue
 		}
 
-		for cursor.Next(context.TODO()) {
+		for cursor.Next(ctx) {
 			var item models.Queue
 			if err := cursor.Decode(&item); err != nil {
 				log.Println("Error decoding item: ", err)
@@ -79,24 +79,24 @@ func (s *QueueService) ProccessQueue() {
 			if err := s.SendRequest(&item); err != nil {
 				item.RetryCount--
 				if item.RetryCount <= 0 {
-					_ = s.archiveService.MoveToArchive(item, "failed")
-					_, _ = s.collection.DeleteOne(context.TODO(), bson.M{"_id": item.ID})
+					_ = s.archiveService.MoveToArchive(ctx, item, "failed")
+					_, _ = s.collection.DeleteOne(ctx, bson.M{"_id": item.ID})
 				} else {
 					_, _ = s.collection.UpdateOne(
-						context.TODO(),
+						ctx,
 						bson.M{"_id": item.ID},
 						bson.M{"$set": bson.M{"retry_count": item.RetryCount}},
 					)
 				}
 				failed++
 			} else {
-				_ = s.archiveService.MoveToArchive(item, "success")
-				_, _ = s.collection.DeleteOne(context.TODO(), bson.M{"_id": item.ID})
+				_ = s.archiveService.MoveToArchive(ctx, item, "success")
+				_, _ = s.collection.DeleteOne(ctx, bson.M{"_id": item.ID})
 				completed++
 			}
 		}
 
-		if err := cursor.Close(context.TODO()); err != nil {
+		if err := cursor.Close(ctx); err != nil {
 			log.Println("Error closing cursor: ", err)
 		}
 
